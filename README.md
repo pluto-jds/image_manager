@@ -6,3 +6,7 @@
 
 ## 用的多模态模型
 阿里云提供的 Qwen2-VL-Max，如果你要使用需要开通服务获取api-key
+
+## 安装 install
+python 3.12.3    
+pip install -r requirements.txt
