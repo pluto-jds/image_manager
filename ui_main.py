@@ -8,7 +8,7 @@ import os
 import shutil
 from pathlib import Path
 from database import create_csv,append_to_csv,find_by_name
-from utils import iterate_media_files
+from utils import iterate_media_files,count_files
 from aiclient import ImageAnalyzer,ChatBot
 
 from datetime import datetime
@@ -29,16 +29,16 @@ def analyze_medio(input_directory, output_dir_input, prompt_text, api_key, categ
     headers = ['Name', 'Path', 'Extension', 'Content', 'Categorys','NewName', 'NewPath']
     create_csv(directory, filename, headers)
     global_file_path = directory+"/"+filename
-
-    for name, path, suffix in iterate_media_files(input_directory):
-
+    
+    all_medio_count = count_files(input_directory)
+    if all_medio_count == 0:
+        return None, "目标目录没有素材文件"
+    current_file_id = 1
+    
+    for name, path, suffix in iterate_media_files(input_directory):    
         # 指定图片路径并进行分析
         result = analyzer.analyze_medio(path, suffix)
         
-        # 打印解析后的字典结果
-        debug_info = f"Path: {path}, Name: {name}, Extension: {suffix}，Content： {result}"
-        yield debug_info
-        print(debug_info)
         fit_cls = result['image_label'][0]
         
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -46,17 +46,33 @@ def analyze_medio(input_directory, output_dir_input, prompt_text, api_key, categ
 
         row_data = [name,path,suffix, result['image_describe'], ", ".join(result['image_label']), result['image_title'], new_path]
         append_to_csv(global_file_path, row_data)
+        
+        process = f"{current_file_id}/{all_medio_count}"
+        
+        medio_type = "图片"
+        if analyzer.is_video:
+            medio_type = "视频"
+        image_describe = "\n".join(f"{key}: {value}" for key, value in result['image_describe'].items())
+        image_label = ", ".join(result['image_label'])
+        debug_info = f"【素材描述】：\n{image_describe}\n【标签】：{image_label}\n【新名称】：{result['image_title']}\n【类型】：{medio_type}\n【归档路径】：{new_path}\n【处理进度】：{process}"
+        
+        if analyzer.is_video:
+            path = analyzer.video_first_frame_path
+        current_file_id = current_file_id + 1
+        yield path, debug_info
+        print(debug_info)
+
     
-    yield "完成素材解析，可以开始素材拷贝，在database目录的csv文件查看准备拷贝的信息"
+    yield None, "完成素材解析，可以开始素材拷贝，在database目录的csv文件查看准备拷贝的信息"
 
 def copy_medio():
     global global_file_path
     copy_files_from_csv(global_file_path)
     return "完成素材拷贝"
 
-def generate_prompt(category_input):
+def generate_prompt(category_input, api_key_input):
     global prompt_template
-    api_key = "sk-xx"  # 替换为你的API Key
+    api_key = api_key_input
     base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 你的API Base URL
     chatbot = ChatBot(api_key, base_url)
     title_prompt_text = """你是一个自媒体素材库AI助手，你根据用户提供的素材分类标签，总结6字以内的用户素材库主题。注意仅输出素材库主题"""
@@ -94,19 +110,26 @@ def create_gradio_ui():
         with gr.Row():
             with gr.Column():
                 category_input = gr.Textbox(label="类别", placeholder="请输入类别以空格分隔，例如：发际线 头顶 生发产品 其他", lines=1, value=categroy_default)
-                prompt_input = gr.Textbox(label="提示词", placeholder="请输入提示词，例如：图片分析", lines=4)
-                prompt_button = gr.Button("给出素材分析提示词")
-                prompt_button.click(fn=generate_prompt, inputs=[category_input], outputs=prompt_input)
-                button_output = gr.Textbox(label="步骤结果", lines=2, interactive=False)
+                prompt_input = gr.Textbox(label="提示词", placeholder="请输入提示词，例如：图片分析", lines=12, max_lines=12)
+                with gr.Row():
+                    with gr.Column():
+                        api_key_input = gr.Textbox(label="API Key", placeholder="请输入API Key", lines=1, value=api_key_debug)
+                        prompt_button = gr.Button("给出素材分析提示词")
+                        prompt_button.click(fn=generate_prompt, inputs=[category_input, api_key_input], outputs=prompt_input)
+                    with gr.Column():
+                        input_dir_input = gr.Textbox(label="输入目录", placeholder="请输入输入目录路径", lines=1, value=input_directory_default)
+                        output_dir_input = gr.Textbox(label="输出目录", placeholder="请输入输出目录路径", lines=1, value=output_directory_default)
             with gr.Column():
-                input_dir_input = gr.Textbox(label="输入目录", placeholder="请输入输入目录路径", lines=1, value=input_directory_default)
-                output_dir_input = gr.Textbox(label="输出目录", placeholder="请输入输出目录路径", lines=1, value=output_directory_default)
-                api_key_input = gr.Textbox(label="API Key", placeholder="请输入API Key", lines=1, value=api_key_debug)
-
+                with gr.Row():
+                    with gr.Column():
+                        image_output = gr.Image(label="处理图像", height=465, width=380)
+                    with gr.Column():
+                        button_output = gr.Textbox(label="处理信息", lines=20, interactive=False, max_lines=20)
                 # 第二部分：生成图片解析按钮
                 analyze_button = gr.Button("步骤1 生成素材解析")
                 # 按钮点击后执行的操作
-                analyze_button.click(fn=analyze_medio, inputs=[input_dir_input, output_dir_input, prompt_input, api_key_input, category_input], outputs=button_output)
+                analyze_button.click(fn=analyze_medio, inputs=[input_dir_input, output_dir_input, prompt_input, api_key_input, category_input], 
+                outputs=[image_output, button_output])
                 
                 # 第三部分：完成图片拷贝按钮
                 copy_button = gr.Button("步骤2 完成素材拷贝")

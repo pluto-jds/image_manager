@@ -1,5 +1,12 @@
+import os
 from pathlib import Path
 from database import create_csv,append_to_csv,find_by_name
+
+def count_files(directory):
+    file_count = 0
+    for root, dirs, files in os.walk(directory):
+        file_count += len(files)  # 统计当前目录中的文件数
+    return file_count
 
 def iterate_media_files(directory):
     # 创建Path对象

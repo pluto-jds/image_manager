@@ -35,6 +35,8 @@ class ImageAnalyzer:
         """初始化，接收API Key、Base URL和提示词"""
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.prompt_text = prompt_text  # 提示词在初始化时传入
+        self.is_video = False
+        self.video_first_frame_path = None
 
     def encode_image(self, image_path):
         """将图像编码为Base64格式，并根据后缀修改配置"""
@@ -82,16 +84,21 @@ class ImageAnalyzer:
         image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff')
         video_extensions = ('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv')
         yaml_content = None
+        
         if suffix in image_extensions:
             print("image:",path)
             yaml_content = self.analyze_image(path)
+            self.is_video = False
         elif suffix in video_extensions:
+            self.is_video = True
             output_directory = "./video_sample_image"
             video_sampe_dir = sample_video(path, output_directory)
             print("video:",video_sampe_dir)
+            self.video_first_frame_path = video_sampe_dir + "//" + "frame_a_0.jpg"
             yaml_content = self.analyze_video(video_sampe_dir)
         else:
             print("not support ",suffix)
+            self.is_video = False
         return yaml_content
 
     def analyze_video(self, image_array_dir):
