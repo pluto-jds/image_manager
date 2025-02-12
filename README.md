@@ -7,6 +7,18 @@
 ## 用的多模态模型
 阿里云提供的 Qwen2-VL-Max，如果你要使用需要开通服务获取api-key
 
+## 使用方法
+
+git clone 或者 下载项目后，在python环境通过 python ui_main.py 启动界面。    
+点击链接，进入界面。在左上角填写你希望对图片或者视频分类的类别，类别之间使用空格分隔。    
+填写输入图像的目录和分类的输出目录。    
+填写申请的阿里云 Qwen2-VL-Max api-key。    
+点击"给出素材分析提示词"按钮，系统自动根据你的分类类别生成解析图像的提示词。    
+点击"生成素材解析"，实时显示解析进度，解析完成后会有提示可以执行拷贝操作。    
+点击"完成素材拷贝"，完成素材从输入目录到目标目录的拷贝。    
+![示例](https://github.com/user-attachments/assets/86a01d37-bbc6-4255-803c-eaa801d7988a)
+
+
 ## 安装 install
 python 3.12.3    
 pip install -r requirements.txt
