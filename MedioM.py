@@ -24,6 +24,7 @@ image_label:以数组方式给出最合适的2个标签
 image_title:结合image_describe为图片或者视频生成小于20字的标题"""
 
 def create_prompt(category_input, api_key_input):
+    
     global prompt_template
     api_key = api_key_input
     base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 你的API Base URL
@@ -40,27 +41,38 @@ def create_prompt(category_input, api_key_input):
     
     prompt_text = prompt_template.format(title_text, category_input.replace(" ", "、"), title_text, parase_text)
     return prompt_text
+    
 
 categroy_default="""发际线 头顶 生发产品 生发液 生发食品 医院和药物 整体发量 头皮按摩 掉发 截图 其他"""
 
-api_key_debug = "sk-xx"  # 替换为你的API Key
+api_key_debug = "sk-d5b2b41547054643a192264be3cd88ec"  # 替换为你的API Key
 
 input_directory_default = './test_image'
 
 output_directory_default = "./image"
 
 def analyze_medio_fn(input_directory, output_dir_input, prompt_text, api_key, category_input):
+    
     global global_file_path
+
+    if not os.path.isabs(input_directory):
+        input_directory = "..//..//..//"+input_directory
+
+    if not os.path.isabs(output_dir_input):
+        output_dir_input = "..//..//..//"+output_dir_input
 
     base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     analyzer = ImageAnalyzer(api_key, base_url, prompt_text)
-    directory = './database'  # 替换为你需要存放CSV的目录路径
+    directory = '..//..//..//database'  # 替换为你需要存放CSV的目录路径
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f'media_info_{current_time}.csv'  # CSV文件名称
     headers = ['Name', 'Path', 'Extension', 'Content', 'Categorys','NewName', 'NewPath']
     create_csv(directory, filename, headers)
     global_file_path = directory+"/"+filename
     
+    if not os.path.exists(input_directory):
+        yield None, f"目录不存在: {input_directory}"
+
     all_medio_count = count_files(input_directory)
     if all_medio_count == 0:
         yield None, "目标目录没有素材文件"
@@ -97,6 +109,7 @@ def analyze_medio_fn(input_directory, output_dir_input, prompt_text, api_key, ca
 
     time.sleep(4)
     yield None, "完成素材解析，可以开始素材拷贝，在database目录的csv文件查看准备拷贝的信息"
+
 
 class AnalyzeThread(QThread):
     # 定义一个信号用于发送实时数据
@@ -138,8 +151,7 @@ class MyWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('素材管理')
-        self.setGeometry(100, 100, 1000, 600)
-        self.resize(800, 800)
+        self.resize(1000, 800)
         
         # 创建主布局
         main_layout = QHBoxLayout()  # 使用水平布局，将左侧和右侧部分分开
@@ -147,20 +159,20 @@ class MyWindow(QWidget):
         # 左侧布局（输入区域）
         left_layout = QVBoxLayout()
         
-        form_layout = QFormLayout()
+        form_layout = QVBoxLayout()
         self.category_input = QLineEdit(self)
         self.category_input.setPlaceholderText('请输入类别，以空格分隔')
         self.category_input.setText(categroy_default)
-        form_layout.addRow('类别', self.category_input)
+        form_layout.addWidget(self.category_input)
 
         self.prompt_input = QTextEdit(self)
         self.prompt_input.setPlaceholderText('请输入提示词')
-        form_layout.addRow('提示词', self.prompt_input)
+        form_layout.addWidget(self.prompt_input)
 
         self.api_key_input = QLineEdit(self)
         self.api_key_input.setPlaceholderText('请输入API Key')
         self.api_key_input.setText(api_key_debug)
-        form_layout.addRow('API Key', self.api_key_input)
+        form_layout.addWidget(self.api_key_input)
 
         self.prompt_button = QPushButton("给出素材分析提示词", self)
         self.prompt_button.clicked.connect(self.generate_prompt)
